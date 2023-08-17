@@ -1,0 +1,19 @@
+- name: Create Pi-hole container
+  docker_container:
+    name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "9001:80/tcp"
+    env:
+      ServerIP: "{{ ansible_default_ipv4.address }}"
+      TZ: "{{ env_vars.PI_HOLE_TIMEZONE }}"
+      WEBPASSWORD: "{{ env_vars.PI_HOLE_WEB_PASSWORD }}"
+      DNS1: 208.67.222.123
+      DNS2: 8.8.8.8
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "./pihole:/etc/pihole"
+      - "./dnsmasq:/etc/dnsmasq.d"
+    restart_policy: always

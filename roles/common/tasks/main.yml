@@ -1,3 +1,8 @@
+- name: Load environment variables
+  include_vars:
+    file: .env
+    name: env_vars
+
 - name: Update apt cache
   apt:
     update_cache: yes
