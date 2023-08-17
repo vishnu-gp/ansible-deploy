@@ -1,0 +1,8 @@
+- name: Provision Raspberry Pi
+  hosts: pis
+  become: yes
+  become_user: root
+  roles:
+    - common
+    - docker
+    - portainer

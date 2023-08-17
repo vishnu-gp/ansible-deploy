@@ -1,0 +1,8 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install required packages
+  apt:
+    name: ['apt-transport-https', 'ca-certificates', 'curl', 'gnupg', 'lsb-release']
+    state: present
