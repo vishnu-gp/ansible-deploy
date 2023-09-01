@@ -1,0 +1,20 @@
+- name: Define name and paths
+  set_fact:
+    client_name: "client_{{ ansible_date_time.epoch | int }}"
+    certificates_path: /tmp/openvpn-certificates/
+
+- name: Build OpenVPN client certificates
+  command: docker exec -i openvpn /bin/sh -c "cd /etc/openvpn/easy-rsa && /usr/share/easy-rsa/easyrsa build-client-full {{ client_name }} nopass && mkdir -p {{ certificates_path }}{{ client_name }} && cp /etc/openvpn/easy-rsa/pki/ca.crt {{ certificates_path }}{{ client_name }} && cp /etc/openvpn/easy-rsa/pki/ta.key {{ certificates_path }}{{ client_name }} && cp /etc/openvpn/easy-rsa/pki/private/{{client_name}}.key {{ certificates_path }}{{ client_name }} && cp /etc/openvpn/easy-rsa/pki/issued/{{client_name}}.crt {{ certificates_path }}{{ client_name }}"
+  register: exec_result
+  ignore_errors: true
+
+- name: Copy certificate files from remote host
+  fetch:
+    src: "{{ item }}"
+    dest: "{{ role_path }}/certificates/{{ client_name }}/"
+    flat: yes
+  with_items:
+    - "{{ certificates_path }}{{ client_name }}/ca.crt"
+    - "{{ certificates_path }}{{ client_name }}/ta.key"
+    - "{{ certificates_path }}{{ client_name }}/{{ client_name }}.crt"
+    - "{{ certificates_path }}{{ client_name }}/{{ client_name }}.key"

@@ -1,0 +1,16 @@
+- name: Create OpenVPN configuration directory
+  file:
+    path: /opt/openvpn
+    state: directory
+
+- name: Copy Dockerfile to remote host
+  copy:
+    src: docker-config/
+    dest: /tmp/openvpn-docker-config
+    follow: yes
+
+- name: Build OpenVPN server image and start server
+  ansible.builtin.shell: cd /tmp/openvpn-docker-config && docker build -t openvpn-server . && docker run -d --name openvpn -v /tmp/openvpn-certificates:/tmp/openvpn-certificates -p 1194:1194/udp --privileged openvpn-server
+
+- name: Generate client certificate
+  include_tasks: generate-client-certificate.yml
