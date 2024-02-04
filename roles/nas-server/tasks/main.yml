@@ -1,0 +1,44 @@
+- name: Update apt package cache
+  apt:
+    update_cache: yes
+
+- name: Install Samba
+  apt:
+    name: samba
+    state: present
+
+- name: Create a directory for the shared folder
+  file:
+    path: "/srv/{{ env_vars.NAS_NAME }}"
+    state: directory
+    mode: '0777'
+
+- name: Configure Samba share
+  lineinfile:
+    path: /etc/samba/smb.conf
+    line: "{{ item }}"
+  with_items:
+    - "[{{ env_vars.NAS_NAME }}]"
+    - "   path = /srv/{{ env_vars.NAS_NAME }}"
+    - "   read only = no"
+    - "   guest ok = yes"
+    - "   create mask = 0777"
+    - "   directory mask = 0777"
+    - "   max connections = 6"
+    - "   max smbd processes = 6"
+
+- name: Set Samba password for pi user using expect
+  expect:
+    command: sudo smbpasswd {{env_vars.NAS_USER}} -a
+    responses:
+      "New SMB password": "{{ env_vars.NAS_PASSWORD }}"
+      "Retype new SMB password": "{{ env_vars.NAS_PASSWORD }}"
+  become: yes
+  
+- name: Restart Samba service
+  service:
+    name: smbd
+    state: restarted
+
+- name: Configure cron job to sync files to S3
+  include_tasks: aws-s3-sync.yml

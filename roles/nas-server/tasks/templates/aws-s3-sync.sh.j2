@@ -1,0 +1,130 @@
+#!/bin/bash
+
+# Path to the lock file
+LOCK_FILE="/srv/aws-s3-sync.lock"
+
+# AWS S3 bucket name
+S3_BUCKET="{{ env_vars.AWS_NAS_S3_BUCKET }}"
+
+# Local directory path
+LOCAL_DIR="/srv/{{ env_vars.NAS_NAME }}"
+
+# Time in minutes to check for file modification
+TIME_THRESHOLD=2
+
+# Log file name with the current date
+LOG_FILE="$LOG_DIR/$(date "+%Y%m%d").txt"
+
+# Function to check if a file has been uploaded
+isFileUploaded() {
+    local file="$1"
+    local metadata_file="$(dirname "$file")/.uploaded_files.txt"
+    if [ -e "$metadata_file" ]; then
+        grep -q "^$file$" "$metadata_file"
+    else
+        # Create an empty metadata file
+        touch "$metadata_file"
+        false  # Return false to indicate file not uploaded
+    fi
+}
+
+# Function to mark a file as uploaded
+markFileUploaded() {
+    local file="$1"
+    local metadata_file="$(dirname "$file")/.uploaded_files.txt"
+    echo "$file" >> "$metadata_file"
+}
+
+
+# Upload file to S3 preserving directory structure
+uploadToS3() {
+    local local_file="$1"
+    local s3_key="$(realpath --relative-to="$LOCAL_DIR" "$local_file")"
+
+    if aws s3 cp "$local_file" "s3://$S3_BUCKET/$s3_key"; then
+        log "SUCCESS - Uploaded $local_file to S3"
+        # Mark the file as uploaded
+        markFileUploaded "$local_file"
+    else
+        log "FAILURE - Failed to upload $local_file to S3"
+    fi
+}
+
+runUpload() {
+    # Get the current timestamp in epoch format
+    current_timestamp=$(date "+%s")
+
+    # Iterate over local files
+    find "$LOCAL_DIR" -type f -print0 | while IFS= read -r -d '' local_file; do
+        # Get the file modification timestamp
+        file_timestamp=$(date -r "$local_file" "+%s")
+
+        # Compare timestamps (allowing a 2-minute buffer)
+        if [ "$((current_timestamp - file_timestamp))" -ge "$((TIME_THRESHOLD * 60))" ]; then
+            if ! isFileUploaded "$local_file"; then
+                # Upload the file to S3 preserving directory structure
+                uploadToS3 "$local_file"
+            fi
+        else
+            [[ "$local_file" != *.log ]] && log "SKIPPED - $local_file is very recent."
+        fi
+    done
+}
+
+deleteOldFiles() {
+    # Get the current date and time in the format yyyymmddhh
+    current_datetime=$(date +'%Y%m%d%H')
+
+    # Calculate the timestamp of 25 hours ago (25 hours * 60 minutes * 60 seconds)
+    timestamp_25_hours_ago=$(date -d '25 hours ago' +'%Y%m%d%H')
+
+    # Find folders with names older than 25 hours and delete them
+    find "$LOCAL_DIR" -type d -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]' -exec bash -c '
+        for folder; do
+            folder_datetime=$(basename "$folder")
+            if [ "$folder_datetime" -lt "$1" ]; then
+                rm -r "$folder"
+                echo "DELETED - Folder $folder."
+            fi
+        done
+    ' _ "$timestamp_25_hours_ago" {} +
+}
+
+log() {
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "$timestamp $1"
+}
+
+
+
+if [ ! -e "$LOCK_FILE" ]; then
+    log "Creating new lock file and process"
+    # Create lock file
+    touch "$LOCK_FILE"
+else 
+    # Get the creation timestamp of the lock file
+    creation_timestamp=$(stat -c %Y "$LOCK_FILE")
+
+    # Get the current timestamp
+    current_timestamp=$(date +%s)
+
+    # Calculate the time difference in seconds
+    time_difference=$((current_timestamp - creation_timestamp))
+
+    if [ "$time_difference" -gt 3600 ]; then
+        log "Removing lock file"
+        # Remove lock file
+        rm -f "$LOCK_FILE"
+        # Kill process
+        ps aux | grep 'aws-s3-sync.sh' | awk '{print $2}' | xargs kill -9
+    else
+        exit 0
+    fi
+fi
+
+while [ -e "$LOCK_FILE" ]; do
+    deleteOldFiles
+    sleep 5
+    runUpload
+    sleep 5
+done

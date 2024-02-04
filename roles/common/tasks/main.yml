@@ -9,5 +9,5 @@
 
 - name: Install required packages
   apt:
-    name: ['apt-transport-https', 'ca-certificates', 'curl', 'gnupg', 'lsb-release']
+    name: ['apt-transport-https', 'ca-certificates', 'curl', 'gnupg', 'lsb-release', 'python3-pip', 'docker-compose', 'python3-pexpect']
     state: present
