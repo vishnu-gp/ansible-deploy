@@ -26,6 +26,7 @@
     - "   directory mask = 0777"
     - "   max connections = 6"
     - "   max smbd processes = 6"
+    - "   server min protocol = NT1"
 
 - name: Set Samba password for pi user using expect
   expect:
