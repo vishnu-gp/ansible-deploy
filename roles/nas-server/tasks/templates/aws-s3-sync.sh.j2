@@ -41,7 +41,7 @@ uploadToS3() {
     local local_file="$1"
     local s3_key="$(realpath --relative-to="$LOCAL_DIR" "$local_file")"
 
-    if aws s3 cp "$local_file" "s3://$S3_BUCKET/$s3_key"; then
+    if aws s3 cp "$local_file" "s3://$S3_BUCKET/$s3_key" --storage-class STANDARD_IA; then
         log "SUCCESS - Uploaded $local_file to S3"
         # Mark the file as uploaded
         markFileUploaded "$local_file"
