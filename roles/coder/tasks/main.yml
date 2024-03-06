@@ -1,0 +1,21 @@
+- name: Pull Coder Docker image
+  docker_image:
+    name: codercom/code-server
+    tag: latest
+    source: pull
+    state: present
+
+- name: Create directory for Coder data
+  file:
+    path: /opt/coder
+    state: directory
+
+- name: Run Coder Docker container
+  docker_container:
+    name: coder
+    image: codercom/code-server:latest
+    ports:
+      - "8443:8080"
+    volumes:
+      - /opt/coder:/home/coder/project
+    restart_policy: unless-stopped
