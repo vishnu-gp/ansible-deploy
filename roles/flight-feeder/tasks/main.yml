@@ -1,0 +1,28 @@
+- name: Install dump1090
+  apt:
+    name: dump1090-mutability
+    state: present
+  become: yes
+
+- name: Copy FlightRadar24 installation script to target server
+  template:
+    src: install.sh.j2
+    dest: /tmp/fr_24_install.sh
+    mode: '0755'
+    
+- name: Install FlightRadar24 feed
+  expect:
+    command: "sudo /tmp/fr_24_install.sh"
+    responses:
+      "(?i)Enter your email address.*": "{{ env_vars.FR_24_EMAIL }}"
+      "(?i)Enter your sharing key.*": "{{ env_vars.FR_24_SHARING_KEY }}"
+      "(?i)Would you like to participate in MLAT calculations?.*": "yes"
+      "(?i)Receiver selection.*": "1" #  1 - DVBT Stick (USB)
+      "(?i)Enter your additional dump1090 arguments or leave empty.*": ""
+      "(?i)Would you like to enable RAW data feed on port 30002.*": "no"
+      "(?i)Would you like to enable Basestation data feed on port 30003.*": "no"
+
+- name: Restart fr24feed service
+  systemd:
+    name: fr24feed
+    state: restarted
