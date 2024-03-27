@@ -7,7 +7,7 @@
     - docker
     - portainer
     - pihole
-    - openvpn
     - nas-server
     - coder
     - flight-feeder
+    - vpn-server

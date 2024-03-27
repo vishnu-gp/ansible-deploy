@@ -1,0 +1,21 @@
+---
+- name: Run VPN Server Docker container
+  docker_container:
+    name: "vpn-server"
+    image: "ghcr.io/wg-easy/wg-easy"
+    state: started
+    restart_policy: unless-stopped
+    env:
+      LANG: "en"
+      WG_HOST: "{{ env_vars.VPN_SERVER_URL }}"
+      WG_PORT: "{{ env_vars.VPN_SERVER_PORT }}"
+      PASSWORD: "{{ env_vars.VPN_ADMIN_PASSWORD }}"
+    volumes:
+      - "~/.wg-easy:/etc/wireguard"
+    ports:
+      - "{{ env_vars.VPN_SERVER_PORT }}:51820/udp"
+      - "{{ env_vars.VPN_SERVER_ADMIN_PORT }}:51821/tcp"
+    capabilities:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls: "net.ipv4.conf.all.src_valid_mark=1 net.ipv4.ip_forward=1"
