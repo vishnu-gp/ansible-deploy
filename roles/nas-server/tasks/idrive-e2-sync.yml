@@ -1,0 +1,32 @@
+- name: Install s3cmd for iDrive E2
+  apt:
+    name: s3cmd
+    state: present
+
+- name: Copy iDrive E2 Sync Script Template to Raspberry Pi
+  template:
+    src: idrive-e2-sync.sh.j2
+    dest: /srv/idrive-e2-sync.sh
+    mode: '0755'
+
+- name: Create s3cmd config file for iDrive E2
+  template:
+    src: s3cfg.j2
+    dest: /root/.s3cfg
+    mode: '0600'
+    owner: root
+    group: root
+
+- name: Add Cron Job to Run iDrive E2 Script Every Minute
+  cron:
+    name: "Run iDrive E2 Script"
+    minute: "*"
+    job: |
+      cd /srv && ./idrive-e2-sync.sh >> "/srv/{{ env_vars.NAS_NAME }}/idrive-e2-upload-logs/log_$(date +\%Y\%m\%d).log" 2>&1
+  become: yes
+
+- name: Restart cron service
+  become: yes
+  service:
+    name: cron
+    state: restarted

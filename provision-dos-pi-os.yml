@@ -4,10 +4,19 @@
   become_user: root
   roles:
     - common
-    - docker
-    - portainer
-    - pihole
-    - nas-server
-    - coder
-    - flight-feeder
-    - vpn-server
+    # - docker
+    # - portainer
+    # - pihole
+    # - nas-server
+    # - coder
+    # - flight-feeder
+    # - vpn-server
+
+
+# write code to create Workspace dir and a symbolic link to home dir for coder
+# Write a new module to run update upgrade scripts periodically
+# Write common task to add nginx server; Each role should remove and create it's nginx confs
+
+# Commented out to avoid accidental execution. Command to run is
+# ansible-playbook -vvv -i inventory.ini provision-dos-pi-os.yml
+# -vvv to see all logs

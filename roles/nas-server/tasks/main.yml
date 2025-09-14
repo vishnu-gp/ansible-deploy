@@ -43,3 +43,6 @@
 
 - name: Configure cron job to sync files to S3
   include_tasks: aws-s3-sync.yml
+
+- name: Configure cron job to sync files to iDrive E2
+  include_tasks: idrive-e2-sync.yml

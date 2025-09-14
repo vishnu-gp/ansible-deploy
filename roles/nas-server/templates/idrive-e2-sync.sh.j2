@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Path to the lock file
-LOCK_FILE="/srv/aws-s3-sync.lock"
+LOCK_FILE="/srv/idrive-e2-sync.lock"
 
-# AWS S3 bucket name
-S3_BUCKET="{{ env_vars.AWS_NAS_S3_BUCKET }}"
+# iDrive E2 bucket name
+E2_BUCKET="{{ env_vars.IDRIVE_E2_BUCKET }}"
 
 # Local directory path
 LOCAL_DIR="/srv/{{ env_vars.NAS_NAME }}"
@@ -18,7 +18,7 @@ LOG_FILE="$LOG_DIR/$(date "+%Y%m%d").txt"
 # Function to check if a file has been uploaded
 isFileUploaded() {
     local file="$1"
-    local metadata_file="$(dirname "$file")/.uploaded_files.txt"
+    local metadata_file="$(dirname "$file")/.uploaded_files_e2.txt"
     if [ -e "$metadata_file" ]; then
         grep -q "^$file$" "$metadata_file"
     else
@@ -31,22 +31,21 @@ isFileUploaded() {
 # Function to mark a file as uploaded
 markFileUploaded() {
     local file="$1"
-    local metadata_file="$(dirname "$file")/.uploaded_files.txt"
+    local metadata_file="$(dirname "$file")/.uploaded_files_e2.txt"
     echo "$file" >> "$metadata_file"
 }
 
-
-# Upload file to S3 preserving directory structure
-uploadToS3() {
+# Upload file to iDrive E2 preserving directory structure
+uploadToE2() {
     local local_file="$1"
-    local s3_key="$(realpath --relative-to="$LOCAL_DIR" "$local_file")"
+    local e2_key="$(realpath --relative-to="$LOCAL_DIR" "$local_file")"
 
-    if aws s3 cp "$local_file" "s3://$S3_BUCKET/$s3_key" --storage-class STANDARD; then
-        log "SUCCESS - Uploaded $local_file to S3"
+    if s3cmd put "$local_file" "s3://$E2_BUCKET/$e2_key"; then
+        log "SUCCESS - Uploaded $local_file to iDrive E2"
         # Mark the file as uploaded
         markFileUploaded "$local_file"
     else
-        log "FAILURE - Failed to upload $local_file to S3"
+        log "FAILURE - Failed to upload $local_file to iDrive E2"
     fi
 }
 
@@ -62,8 +61,8 @@ runUpload() {
         # Compare timestamps (allowing a 2-minute buffer)
         if [ "$((current_timestamp - file_timestamp))" -ge "$((TIME_THRESHOLD * 60))" ]; then
             if ! isFileUploaded "$local_file"; then
-                # Upload the file to S3 preserving directory structure
-                uploadToS3 "$local_file"
+                # Upload the file to iDrive E2 preserving directory structure
+                uploadToE2 "$local_file"
             fi
         else
             [[ "$local_file" != *.log ]] && log "SKIPPED - $local_file is very recent."
@@ -95,13 +94,11 @@ log() {
     echo "$timestamp $1"
 }
 
-
-
 if [ ! -e "$LOCK_FILE" ]; then
     log "Creating new lock file and process"
     # Create lock file
     touch "$LOCK_FILE"
-else 
+else
     # Get the creation timestamp of the lock file
     creation_timestamp=$(stat -c %Y "$LOCK_FILE")
 
@@ -116,7 +113,7 @@ else
         # Remove lock file
         rm -f "$LOCK_FILE"
         # Kill process
-        ps aux | grep 'aws-s3-sync.sh' | awk '{print $2}' | xargs kill -9
+        ps aux | grep 'idrive-e2-sync.sh' | awk '{print $2}' | xargs kill -9
     else
         exit 0
     fi
